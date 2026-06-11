@@ -46,6 +46,23 @@ function widgetResponseSchema(): Record<string, unknown> {
       target: "draft-7",
     }) as Record<string, unknown>;
     restoreEnumDescriptions(schema);
+    // The handler adds two sibling fields to the widget data (observability — the
+    // widget itself ignores unknown keys): which source the figures came from, and
+    // an optional human note when it's a fixture fallback.
+    if (schema.type === "object") {
+      schema.properties = {
+        ...(schema.properties as Record<string, unknown> | undefined),
+        dataSource: {
+          type: "string",
+          enum: ["live", "fixture"],
+          description: "Whether the figures are live upstream data or the demo fixture fallback.",
+        },
+        message: {
+          type: "string",
+          description: "Present when data is a fixture/empty — explains why (e.g. 403 RBAC, no token).",
+        },
+      };
+    }
     return schema;
   } catch {
     return { type: "object", description: "emission_analytics widget data (see zap-widgets schema)." };

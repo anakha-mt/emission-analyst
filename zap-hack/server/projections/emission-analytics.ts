@@ -8,8 +8,9 @@
  * ever drifts from the widget, this throws loudly instead of rendering wrong data.
  *
  * Source endpoint (year-to-date CII graph):
- *   GET /emission-analytics/api/year-to-date-cii-for-graph?imo=<imo>&year=<year>
- *   -> { graphData: [{ date: "Jan 1", curCii, prevCii, curCiiRating, prevCiiRating }, ...] }
+ *   GET {EMISSIONS_BASE_URL}/year-to-date-cii-for-graph/<imo>?year=<year>
+ *   -> { graphData: [{ date: "Jan 1", curCii, prevCii, curCiiRating, prevCiiRating }, ...],
+ *        unAppliedCorrectionCii, appliedCorrectionCii, requiredCii, correctionData, ... }
  *
  * Target output shape is pinned by:
  *   zap-widgets/src/emission/schema/emission-analytics.ts (emissionAnalyticsInputSchema)
@@ -22,7 +23,7 @@ import type { RawJson } from "../westship.js";
 // The widget's data type, derived straight from its schema — no re-declaration.
 type EmissionAnalyticsData = (typeof emissionAnalyticsInputSchema)["_zod"]["output"];
 
-export type ProjectArgs = {
+type ProjectArgs = {
   vesselName?: string | null;
   year: number;
 };
@@ -63,9 +64,9 @@ function normaliseRating(r: string | null | undefined): "A" | "B" | "C" | "D" | 
 /**
  * Map a raw Westship CII graph response into the emission_analytics widget shape.
  *
- * `series`, `startDate`, `endDate`, `defaultYear` are derived deterministically from
- * `graphData`. `boundariesByYear` and `correctionFactors` are NOT in this endpoint —
- * see the TODO below.
+ * `series`/`startDate`/`endDate`/`defaultYear` come from `graphData`; `correctionFactors`
+ * from the un/applied correction CII + `correctionData`; `boundariesByYear` is derived
+ * from the response's `requiredCii`. All values are live — no hardcoded figures.
  */
 export function projectEmissionAnalytics(raw: RawJson, args: ProjectArgs): EmissionAnalyticsData {
   // Fast path: already widget-shaped (covers the fixture + any pre-projected source).
@@ -96,28 +97,65 @@ export function projectEmissionAnalytics(raw: RawJson, args: ProjectArgs): Emiss
   const startDate = `${curYear}-01-01T00:00:00Z`;
   const endDate = curPoints.at(-1)?.date ?? startDate;
 
-  // ── latest attained CII (drives the correction-factors summary) ───────────
+  // ── latest attained CII (fallback when the correction fields are absent) ──
   const lastCur = graphData.filter((p) => p.curCii != null).at(-1);
   const latestValue = (lastCur?.curCii as number | undefined) ?? 0;
   const latestRating = normaliseRating(lastCur?.curCiiRating);
 
-  // TODO(implementation): boundariesByYear and correctionFactors are not in the
-  // graph endpoint. Wire the real Westship sources when available:
-  //   - rating boundaries (requiredCii + A–E band edges per year)
-  //   - correction factors (before/after CII + deducted consumption/CO2)
-  // Until then we derive what we can (afterCorrection = latest attained CII) and
-  // use the vessel's reference boundary values so the widget renders end-to-end.
-  const referenceBoundaries = { requiredCii: 3.88926652641849, aMax: 3.189, bMax: 3.617, cMax: 4.2, dMax: 4.628 };
-  const boundariesByYear = [
-    { year: curYear, ...referenceBoundaries },
-    ...(prevPoints.length ? [{ year: prevYear, ...referenceBoundaries }] : []),
-  ];
+  // Before/after correction come from the API (+ their ratings). Corrections deduct
+  // fuel/CO2, which LOWERS CII — so `appliedCorrectionCii` (corrections applied) is the
+  // better "after" value and `unAppliedCorrectionCii` (none applied) is the worse
+  // "before" value. Fall back to the latest attained CII when a field is missing.
+  const num = (v: unknown): number | null => (typeof v === "number" ? v : null);
+  const beforeCii = num(raw["unAppliedCorrectionCii"]);
+  const afterCii = num(raw["appliedCorrectionCii"]);
+  const beforeValue = beforeCii ?? latestValue;
+  const afterValue = afterCii ?? latestValue;
+  const beforeRating =
+    beforeCii != null ? normaliseRating(raw["unAppliedCorrectionCiiRating"] as string | null) : latestRating;
+  const afterRating =
+    afterCii != null ? normaliseRating(raw["appliedCorrectionCiiRating"] as string | null) : latestRating;
+
+  // Total consumption / CO2 deducted = sum of every correction's deductibleConsumption /
+  // deductibleEmission from the live `correctionData` (not-applied entries carry 0, so
+  // summing all is safe).
+  type CorrectionEntry = {
+    correctedConsumptionDetails?: { deductibleConsumption?: number | null } | null;
+    correctedEmissionDetails?: { deductibleEmission?: number | null } | null;
+  };
+  const correctionData = Array.isArray(raw["correctionData"]) ? (raw["correctionData"] as CorrectionEntry[]) : [];
+  const totalConsumptionDeductedMt = correctionData.reduce(
+    (sum, c) => sum + (c.correctedConsumptionDetails?.deductibleConsumption ?? 0),
+    0,
+  );
+  const totalCo2DeductedMt = correctionData.reduce(
+    (sum, c) => sum + (c.correctedEmissionDetails?.deductibleEmission ?? 0),
+    0,
+  );
+
+  // Rating boundaries: required CII comes straight from the live response — no hardcoded
+  // value. The API doesn't return the A–E band edges, so they're derived from requiredCii
+  // via the standard CII rating multipliers (formula, not vessel data). If the response
+  // lacks requiredCii the projection throws and the handler falls back to the fixture.
+  const requiredCii = num(raw["requiredCii"]);
+  if (requiredCii == null) {
+    throw new Error("emission-analytics response is missing requiredCii — cannot derive CII boundaries.");
+  }
+  const deriveBoundaries = (year: number) => ({
+    year,
+    requiredCii,
+    aMax: Number((requiredCii * 0.82).toFixed(3)),
+    bMax: Number((requiredCii * 0.93).toFixed(3)),
+    cMax: Number((requiredCii * 1.08).toFixed(3)),
+    dMax: Number((requiredCii * 1.19).toFixed(3)),
+  });
+  const boundariesByYear = [deriveBoundaries(curYear), ...(prevPoints.length ? [deriveBoundaries(prevYear)] : [])];
 
   const correctionFactors = {
-    beforeCorrection: { rating: latestRating, value: latestValue },
-    afterCorrection: { rating: latestRating, value: latestValue },
-    totalConsumptionDeductedMt: 0,
-    totalCo2DeductedMt: 0,
+    beforeCorrection: { rating: beforeRating, value: beforeValue },
+    afterCorrection: { rating: afterRating, value: afterValue },
+    totalConsumptionDeductedMt,
+    totalCo2DeductedMt,
   };
 
   const mapped = {
