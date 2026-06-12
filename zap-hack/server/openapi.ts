@@ -12,6 +12,9 @@
 import { z } from "zod";
 
 import { emissionAnalyticsInputSchema } from "../../../zap-widgets/src/emission/schema/emission-analytics.js";
+import { emissionEuEtsInputSchema } from "../../../zap-widgets/src/emission/schema/emission-eu-ets.js";
+import { emissionFleetSummaryInputSchema } from "../../../zap-widgets/src/emission/schema/fleet-summary.js";
+import { emissionFuelConsumptionInputSchema } from "../../../zap-widgets/src/emission/schema/fuel-consumption.js";
 
 const CII_RATING_DESCRIPTION = "CII rating band: A (best) through E (worst).";
 
@@ -39,10 +42,10 @@ function restoreEnumDescriptions(node: unknown): void {
   for (const value of Object.values(obj)) restoreEnumDescriptions(value);
 }
 
-/** Best-effort JSON Schema for the widget data; falls back to a loose object on any drift. */
-function widgetResponseSchema(): Record<string, unknown> {
+/** Best-effort JSON Schema for a widget's data; falls back to a loose object on any drift. */
+function widgetResponseSchema(widgetSchema: z.ZodType): Record<string, unknown> {
   try {
-    const schema = z.toJSONSchema(emissionAnalyticsInputSchema as unknown as z.ZodType, {
+    const schema = z.toJSONSchema(widgetSchema, {
       target: "draft-7",
     }) as Record<string, unknown>;
     restoreEnumDescriptions(schema);
@@ -69,6 +72,59 @@ function widgetResponseSchema(): Record<string, unknown> {
   }
 }
 
+/** Shared request body: every tool takes the same `{ vesselId, year, vesselName? }`. */
+function vesselRequestBody(): Record<string, unknown> {
+  return {
+    required: true,
+    content: {
+      "application/json": {
+        schema: {
+          type: "object",
+          required: ["vesselId", "year"],
+          properties: {
+            vesselId: {
+              type: "string",
+              description: "Westship vessel identifier (or IMO number) to fetch data for.",
+            },
+            year: {
+              type: "integer",
+              description: "Reporting year, e.g. 2026.",
+            },
+            vesselName: {
+              type: "string",
+              description: "Optional display name shown in the widget header.",
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+/** Build one POST operation that returns a widget-shaped payload. */
+function widgetOperation(args: {
+  operationId: string;
+  summary: string;
+  description: string;
+  responseDescription: string;
+  schema: z.ZodType;
+}): Record<string, unknown> {
+  return {
+    post: {
+      operationId: args.operationId,
+      summary: args.summary,
+      description: args.description,
+      requestBody: vesselRequestBody(),
+      responses: {
+        "200": {
+          description: args.responseDescription,
+          content: { "application/json": { schema: widgetResponseSchema(args.schema) } },
+        },
+      },
+    },
+  };
+}
+
 export function buildOpenApiSpec(): Record<string, unknown> {
   return {
     openapi: "3.0.0",
@@ -79,51 +135,55 @@ export function buildOpenApiSpec(): Record<string, unknown> {
       description: "Adapter that wraps the raw Westship API and shapes data for the emission widgets.",
     },
     paths: {
-      "/get_emission_analytics": {
-        post: {
-          operationId: "get_emission_analytics",
-          summary: "Get a vessel's year-to-date CII analytics",
-          description:
-            "Fetch a vessel's year-to-date Carbon Intensity Indicator (CII) analytics — attained CII " +
-            "curve(s), A-E rating boundaries per year, and the correction-factors summary — shaped exactly " +
-            "for the emission_analytics widget. After calling this, pass the result straight to " +
-            "show_emission_analytics to render the chart. Use when the user asks about CII or emission " +
-            "analytics for a vessel.",
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["vesselId", "year"],
-                  properties: {
-                    vesselId: {
-                      type: "string",
-                      description: "Westship vessel identifier (or IMO number) to fetch CII for.",
-                    },
-                    year: {
-                      type: "integer",
-                      description: "Reporting year to pre-select in the CII boundaries dropdown, e.g. 2026.",
-                    },
-                    vesselName: {
-                      type: "string",
-                      description: "Optional display name shown in the widget header.",
-                    },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "Emission analytics data, ready to pass to show_emission_analytics.",
-              content: {
-                "application/json": { schema: widgetResponseSchema() },
-              },
-            },
-          },
-        },
-      },
+      "/get_emission_analytics": widgetOperation({
+        operationId: "get_emission_analytics",
+        summary: "Get a vessel's year-to-date CII analytics",
+        description:
+          "Fetch a vessel's year-to-date Carbon Intensity Indicator (CII) analytics — attained CII " +
+          "curve(s), A-E rating boundaries per year, and the correction-factors summary — shaped exactly " +
+          "for the emission_analytics widget. After calling this, pass the result straight to " +
+          "show_emission_analytics to render the chart. Use when the user asks about CII or emission " +
+          "analytics for a vessel.",
+        responseDescription: "Emission analytics data, ready to pass to show_emission_analytics.",
+        schema: emissionAnalyticsInputSchema as unknown as z.ZodType,
+      }),
+      "/get_eu_ets": widgetOperation({
+        operationId: "get_eu_ets",
+        summary: "Get a vessel's EU ETS exposure and cost",
+        description:
+          "Fetch a vessel's EU ETS (EU Emissions Trading System) exposure for a compliance year — the " +
+          "EU Allowance (EUA) exposure, total EUA cost in EUR, and coverage percentage — shaped exactly " +
+          "for the emission_eu_ets widget. After calling this, pass the result straight to " +
+          "show_emission_eu_ets to render the card. Use when the user asks about EU ETS, carbon " +
+          "allowances, or EUA cost for a vessel.",
+        responseDescription: "EU ETS data, ready to pass to show_emission_eu_ets.",
+        schema: emissionEuEtsInputSchema as unknown as z.ZodType,
+      }),
+      "/get_fuel_consumption": widgetOperation({
+        operationId: "get_fuel_consumption",
+        summary: "Get a vessel's fuel consumption and CO2 breakdown",
+        description:
+          "Fetch a vessel's year-to-date fuel consumption and resulting CO2 emissions — per-fuel " +
+          "consumption (VLSFO, MGO, HFO, …) with each fuel's CO2 conversion factor and CO2 output, plus " +
+          "total CO2 — shaped exactly for the emission_fuel_consumption widget. After calling this, pass " +
+          "the result straight to show_emission_fuel_consumption to render the breakdown. Use when the " +
+          "user asks about fuel consumption, fuel burn, or CO2 emissions for a vessel.",
+        responseDescription: "Fuel consumption data, ready to pass to show_emission_fuel_consumption.",
+        schema: emissionFuelConsumptionInputSchema as unknown as z.ZodType,
+      }),
+      "/get_fleet_summary": widgetOperation({
+        operationId: "get_fleet_summary",
+        summary: "Get a vessel's emission summary",
+        description:
+          "Fetch a single vessel's at-a-glance emission summary — vessel characteristics, voyage " +
+          "performance (distance, time, speeds), attained CII with rating and 30-day trend, EU ETS " +
+          "exposure and cost, and the per-fuel consumption / CO2 breakdown — shaped exactly for the " +
+          "emission_fleet_summary widget. After calling this, pass the result straight to " +
+          "show_emission_fleet_summary to render the summary. Use when the user asks for an emission " +
+          "overview or summary for a vessel.",
+        responseDescription: "Emission summary data, ready to pass to show_emission_fleet_summary.",
+        schema: emissionFleetSummaryInputSchema as unknown as z.ZodType,
+      }),
     },
   };
 }

@@ -25,10 +25,23 @@ export type RawJson = Record<string, unknown>;
 /** A non-throwing upstream result: ok + HTTP status (null on network failure) + parsed body. */
 export type SoftResult<T = RawJson> = { ok: boolean; status: number | null; data: T | null };
 
-/** The widget-shaped fixture, used as the offline/denied-demo payload (projection passes it through). */
-export function loadFixture(): RawJson {
+/** Names of the widget-shaped fixtures shipped by zap-widgets, keyed to their files. */
+const FIXTURE_FILES = {
+  cii: "westship-cii.fixture.json",
+  "fleet-summary": "westship-fleet-summary.fixture.json",
+  "eu-ets": "westship-eu-ets.fixture.json",
+  "fuel-consumption": "westship-fuel-consumption.fixture.json",
+} as const;
+
+export type FixtureName = keyof typeof FIXTURE_FILES;
+
+/**
+ * Load a widget-shaped fixture, used as the offline/denied-demo payload (the
+ * projection's fast path passes it straight through). Defaults to the CII fixture.
+ */
+export function loadFixture(name: FixtureName = "cii"): RawJson {
   const path = fileURLToPath(
-    new URL("../../../zap-widgets/src/emission/components/westship-cii.fixture.json", import.meta.url),
+    new URL(`../../../zap-widgets/src/emission/components/${FIXTURE_FILES[name]}`, import.meta.url),
   );
   return JSON.parse(readFileSync(path, "utf8")) as RawJson;
 }
@@ -102,4 +115,23 @@ export async function fetchCiiGraph(params: {
 }): Promise<SoftResult> {
   const imo = encodeURIComponent(String(params.vesselId));
   return softGet(`/year-to-date-cii-for-graph/${imo}`, { year: params.year }, params.auth);
+}
+
+/**
+ * Fetch the raw vessel-details payload (soft — never throws). One call feeds the
+ * EU ETS, fuel-consumption, and fleet-summary widgets.
+ *
+ *   GET {EMISSIONS_BASE_URL}/vessel-details/<imo>?year=<year>
+ *   -> { imo, shipCiiType, dwt, iceClass, referenceCII, performance, aer,
+ *        fuelConsumption, vesselEuEtsExposure, ... }
+ *
+ * `vesselId` is the vessel's IMO number (a PATH segment).
+ */
+export async function fetchVesselDetails(params: {
+  vesselId: string | number;
+  year: number;
+  auth?: string;
+}): Promise<SoftResult> {
+  const imo = encodeURIComponent(String(params.vesselId));
+  return softGet(`/vessel-details/${imo}`, { year: params.year }, params.auth);
 }

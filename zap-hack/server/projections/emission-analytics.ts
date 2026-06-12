@@ -56,7 +56,7 @@ function labelToIso(label: string, year: number): string | null {
 }
 
 /** "c" -> "C". Anything unexpected falls back to "C" (mid band) so the schema enum still passes. */
-function normaliseRating(r: string | null | undefined): "A" | "B" | "C" | "D" | "E" {
+export function normaliseRating(r: string | null | undefined): "A" | "B" | "C" | "D" | "E" {
   const up = (r ?? "").toUpperCase();
   return up === "A" || up === "B" || up === "C" || up === "D" || up === "E" ? up : "C";
 }

@@ -13,8 +13,11 @@ import express from "express";
 
 import { buildOpenApiSpec } from "./openapi.js";
 import { projectEmissionAnalytics } from "./projections/emission-analytics.js";
-import { gatherCiiFacts } from "./vessel-facts.js";
-import { loadFixture } from "./westship.js";
+import { projectEuEts } from "./projections/eu-ets.js";
+import { projectFleetSummary } from "./projections/fleet-summary.js";
+import { projectFuelConsumption } from "./projections/fuel-consumption.js";
+import { gatherCiiFacts, gatherVesselDetailsFacts } from "./vessel-facts.js";
+import { loadFixture, type FixtureName, type RawJson } from "./westship.js";
 
 const PORT = Number(process.env.PORT ?? 9001);
 
@@ -56,6 +59,44 @@ app.post("/get_emission_analytics", async (req, res) => {
     }
   }
 });
+
+/**
+ * Register a vessel-details-backed widget tool. All three share one upstream call
+ * (`/vessel-details/<imo>`) and the always-200 contract; they differ only in which
+ * fixture they fall back to and which projection they run.
+ */
+function registerVesselDetailsTool(
+  path: string,
+  fixtureName: FixtureName,
+  project: (raw: RawJson, args: { vesselName?: string | null; year: number }) => unknown,
+): void {
+  app.post(path, async (req, res) => {
+    const { vesselId, year, vesselName } = req.body ?? {};
+    if (vesselId === undefined || year === undefined) {
+      res.status(400).json({ error: "vesselId and year are required" });
+      return;
+    }
+
+    try {
+      const fixture = loadFixture(fixtureName);
+      const facts = await gatherVesselDetailsFacts({ vesselId, year: Number(year), auth: authOf(req), fixture });
+      const data = project(facts.raw, { vesselName, year: Number(year) }) as Record<string, unknown>;
+      res.json({ ...data, dataSource: facts.dataSource, ...(facts.message ? { message: facts.message } : {}) });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      try {
+        const data = project(loadFixture(fixtureName), { vesselName, year: Number(year) }) as Record<string, unknown>;
+        res.json({ ...data, dataSource: "fixture", message: `Projection error (${message}) — showing demo fixture.` });
+      } catch {
+        res.status(200).json({ dataAvailable: false, message });
+      }
+    }
+  });
+}
+
+registerVesselDetailsTool("/get_eu_ets", "eu-ets", projectEuEts);
+registerVesselDetailsTool("/get_fuel_consumption", "fuel-consumption", projectFuelConsumption);
+registerVesselDetailsTool("/get_fleet_summary", "fleet-summary", projectFleetSummary);
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
