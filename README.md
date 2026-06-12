@@ -282,3 +282,5 @@ emission-analyst/
 - Regulatory parameters (CII reduction factors, EU ETS phase-in, EUA price) are **reference/config values** read from the service and should be confirmed against the live config before any operational use.
 - This is a hackathon submission: the value is the agent layer and the reuse of existing services, not new emissions math.
 - Nothing here is regulatory or compliance advice; it is an internal analyst aid.
+
+Link to video recording - https://drive.google.com/drive/folders/1D1K74mKh0G53M2jVC2B6Jc6pb4RQZ2Uh
