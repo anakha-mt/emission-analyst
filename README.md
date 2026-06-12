@@ -1,7 +1,7 @@
 # Emission Analyst
 
 **Your fleet's emissions and compliance desk, answered in chat.**
-Ask a question in plain language — CII, EU ETS, fuel, FuelEU, voyage carbon cost — and get the right chart or card back in a single ZAP prompt. Built entirely on ZeroNorth's existing **Westship Emission Analytics API** and **Fuel Model service**, re-exposed as ZAP agent tools that render the [`zap-widgets` emission widgets](../zap-widgets/src/emission/).
+Ask a question in plain language — CII, EU ETS, fuel, FuelEU, voyage carbon cost — and get the right chart or card back in a single ZAP prompt. Built entirely on ZeroNorth's existing **Westship Emission Analytics API** and **Fuel Model service**, re-exposed as ZAP agent tools that render the [`zap-widgets` emission widgets](widgets/src/emission/) — vendored as a git submodule tracking `zap-widgets@zap-dev-wave`.
 
 > Repo: <https://github.com/anakha-mt/emission-analyst/tree/main> · Team: **Emission Analyst** · Data source: **Stage** (`zn-stage`, tenant `westship`)
 
@@ -188,16 +188,17 @@ These are the supported questions. Vessel IMO `9711834` and year `2026` are used
 ### Prerequisites
 - **Node.js ≥ 24** (`zap-cli` requires it; `run.sh` pins it via `nvm use 24`)
 - **AWS SSO** logged in for the `zn-stage` profile (Stage SSM secrets): `aws sso login --profile zn-stage`
-- A sibling checkout of **`zap-widgets`** next to this repo (the tool server imports the emission widget schemas from `../zap-widgets/src/emission`; the platform serves the widget source). `zap.config.mjs` points at `../../zap-widgets`.
+- The **`zap-widgets` emission widgets** are vendored as a **git submodule** at `widgets/`, tracking `0north/zap-widgets` branch **`zap-dev-wave`** — no sibling checkout needed. Clone with `--recurse-submodules` (or run `git submodule update --init`); `run.sh` initialises it for you. The tool server imports the widget schemas from `../widgets/src/emission`, and `zap.config.mjs` points the platform at `../widgets`.
+- The widget schemas' only runtime dependency is **`zod`**, declared in the repo-root `package.json` and installed with a root `npm install` (also run by `run.sh`), so Node resolves it from inside the submodule. *(To pull newer `zap-dev-wave` commits: `git submodule update --remote widgets`, then commit the moved pointer.)*
 
 ### Run (Stage)
 ```bash
-git clone https://github.com/anakha-mt/emission-analyst.git
+git clone --recurse-submodules https://github.com/anakha-mt/emission-analyst.git
 cd emission-analyst/zap-hack
 npm install
 ./run.sh                       # tool server (:9001) + `zap serve` platform (:3000)
 ```
-`run.sh` boots the Express tool server in the background, waits for it, then starts `zap serve` (which reads the OpenAPI spec once at startup). Then open <http://localhost:3000/zap> and ask any of the [example prompts](#example-chat-prompts).
+`run.sh` first ensures the `widgets` submodule is checked out (`git submodule update --init`) and installs the root `zod` dependency, then boots the Express tool server in the background, waits for it, and starts `zap serve` (which reads the OpenAPI spec once at startup). Then open <http://localhost:3000/zap> and ask any of the [example prompts](#example-chat-prompts).
 
 ```bash
 zap lint http://localhost:9001/openapi.json   # validate the spec is agent-readable
@@ -212,9 +213,13 @@ zap lint http://localhost:9001/openapi.json   # validate the spec is agent-reada
 ```
 emission-analyst/
 ├── README.md                       # this file
+├── .gitmodules                     # widgets -> 0north/zap-widgets @ zap-dev-wave
+├── package.json                    # root manifest: provides zod for the widgets submodule schemas
+├── widgets/                        # git submodule: 0north/zap-widgets, branch zap-dev-wave
+│   └── src/emission/               # the rendered emission widgets (schemas + components)
 └── zap-hack/                       # the Emission Analyst tool server + ZAP domain
-    ├── run.sh                      # boots tool server (:9001) + `zap serve` (:3000)
-    ├── zap.config.mjs              # environment: stage, tenant: westship, widgets: ../../zap-widgets
+    ├── run.sh                      # inits submodule + root zod, boots tool server (:9001) + `zap serve` (:3000)
+    ├── zap.config.mjs              # environment: stage, tenant: westship, widgets: ../widgets
     ├── package.json
     ├── server/
     │   ├── index.ts                # Express tool server — routes + GET /openapi.json (always-200)
@@ -234,8 +239,6 @@ emission-analyst/
         ├── domain.yaml             # domain id: emission, name: Emission Analyst
         ├── knowledge/              # ambient knowledge injected into the agent prompt
         └── evals/                  # eval suites (vitest)
-
-(zap-widgets/  — sibling checkout; src/emission/ holds the rendered widgets)
 ```
 
 ---
