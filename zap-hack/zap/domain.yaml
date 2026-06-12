@@ -1,0 +1,7 @@
+id: emission
+name: Emission Analyst
+summary: |
+  Fleet emissions and regulatory-compliance analysis for maritime operators.
+  Covers CII (Carbon Intensity Indicator) ratings, CO2 emissions per nautical
+  mile, EU ETS carbon cost, FuelEU and EEOI compliance risk, route- and
+  voyage-level emissions, and incomplete-voyage tracking.

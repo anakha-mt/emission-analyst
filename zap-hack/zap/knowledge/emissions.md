@@ -29,12 +29,29 @@ result **straight** to the matching render tool (never reshape the numbers yours
 - **Fuel consumption / fuel burn / CO2 breakdown** → call **`westship_get_fuel_consumption`**,
   then **`show_emission_fuel_consumption`**. Returns the per-fuel consumption with each
   fuel's CO2 conversion factor and CO2 output, plus total CO2.
-- **Emission overview / summary for a vessel** → call **`westship_get_fleet_summary`**,
-  then **`show_emission_fleet_summary`**. Returns an at-a-glance summary: vessel
-  characteristics, voyage performance, attained CII (rating + 30-day trend), EU ETS
-  exposure, and the fuel/CO2 breakdown.
+- **Any summary / overview of a single vessel** — including "emission summary", "emission
+  overview", "fleet summary for <vessel>", "fleet summary for a vessel <name>(<imo>)", "summary
+  for IMO <n>", or just "summary for <vessel>" → call **`westship_get_fleet_summary`**, then
+  **`show_emission_fleet_summary`**. Returns an at-a-glance summary: vessel characteristics, voyage
+  performance, attained CII (rating + 30-day trend), EU ETS exposure, and the fuel/CO2 breakdown.
+  Do NOT answer a single-vessel "summary"/"overview" by stitching together the AIS position /
+  voyage / port-call tools into prose — render this widget instead. Use those AIS tools ONLY when
+  the user EXPLICITLY asks for the vessel's live position, its voyage list, or its port calls (not
+  a generic "summary"). Resolving the name to an IMO first (see below) is fine, but the summary
+  itself MUST come from `westship_get_fleet_summary`.
 
 All four tools take the same `{ vesselId, year, vesselName? }` input (`vesselId` is the IMO).
+
+## CII forecast & speed advice
+
+When the user asks about a vessel's **CII forecast/trajectory** OR for **speed advice** to hit a CII
+grade — e.g. "CII forecast for <vessel>", "will <vessel> stay compliant", **"suggest a speed to
+maintain throughout the year to bring CII to a good grade"**, "what speed should I sail to keep a
+good CII rating", "how slow must <vessel> go to stay rated A/B" — call
+**`westship_get_vessel_cii_forecast`** (by `imo` or `vesselName`), then pass the result **straight**
+to **`show_cii_forecast_chart`** (titled "CII Forecast - Based on speed"). The chart's speed→CII
+branches show the grade attainable at each sailing speed per future year, which answers the
+speed-to-maintain question — render the chart, don't just describe it in prose.
 
 ## Resolving the vessel (name → IMO)
 
