@@ -16,7 +16,7 @@
  *   zap-widgets/src/emission/schema/emission-analytics.ts (emissionAnalyticsInputSchema)
  *   zap-widgets/src/emission/components/westship-cii.fixture.json (worked example)
  */
-import { emissionAnalyticsInputSchema } from "../../../../zap-widgets/src/emission/schema/emission-analytics.js";
+import { emissionAnalyticsInputSchema } from "../../../widgets/src/emission/schema/emission-analytics.js";
 
 import type { RawJson } from "../westship.js";
 

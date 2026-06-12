@@ -6,7 +6,7 @@
  * Source: GET {EMISSIONS_BASE_URL}/vessel-details/<imo>?year=<year> -> fuelConsumption.
  * Target: zap-widgets/src/emission/schema/fuel-consumption.ts (emissionFuelConsumptionInputSchema).
  */
-import { emissionFuelConsumptionInputSchema } from "../../../../zap-widgets/src/emission/schema/fuel-consumption.js";
+import { emissionFuelConsumptionInputSchema } from "../../../widgets/src/emission/schema/fuel-consumption.js";
 
 import { aggregateFuelLines, FUEL_CONSUMPTION_BASIS, totalCo2Mt } from "./vessel-details.js";
 

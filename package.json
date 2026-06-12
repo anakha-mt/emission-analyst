@@ -1,0 +1,8 @@
+{
+  "name": "emission-analyst",
+  "private": true,
+  "description": "Root manifest providing the runtime dependency (zod) that the zap-widgets submodule schemas need when imported by zap-hack/server. Resolved by Node walking up from widgets/ to this directory's node_modules.",
+  "dependencies": {
+    "zod": "4.4.3"
+  }
+}

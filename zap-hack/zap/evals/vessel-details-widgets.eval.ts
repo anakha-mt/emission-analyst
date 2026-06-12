@@ -4,9 +4,9 @@ import { describe, it, expect } from "vitest";
 // Each fixture is the worked example of its projection's output — exactly what the
 // live tool would return. Reusing them as the mocks keeps the evals in lockstep with
 // the widget shapes. Sandbox tools must be mocked; evals never hit the live server.
-import euEtsFixture from "../../../../zap-widgets/src/emission/components/westship-eu-ets.fixture.json" assert { type: "json" };
-import fleetSummaryFixture from "../../../../zap-widgets/src/emission/components/westship-fleet-summary.fixture.json" assert { type: "json" };
-import fuelConsumptionFixture from "../../../../zap-widgets/src/emission/components/westship-fuel-consumption.fixture.json" assert { type: "json" };
+import euEtsFixture from "../../../widgets/src/emission/components/westship-eu-ets.fixture.json" assert { type: "json" };
+import fleetSummaryFixture from "../../../widgets/src/emission/components/westship-fleet-summary.fixture.json" assert { type: "json" };
+import fuelConsumptionFixture from "../../../widgets/src/emission/components/westship-fuel-consumption.fixture.json" assert { type: "json" };
 
 // The agent may first resolve the IMO via the built-in vessel domain — mock it so
 // either path (direct or lookup-then-fetch) succeeds.

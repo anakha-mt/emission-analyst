@@ -7,7 +7,7 @@
  * Source: GET {EMISSIONS_BASE_URL}/vessel-details/<imo>?year=<year> -> vesselEuEtsExposure.
  * Target: zap-widgets/src/emission/schema/emission-eu-ets.ts (emissionEuEtsInputSchema).
  */
-import { emissionEuEtsInputSchema } from "../../../../zap-widgets/src/emission/schema/emission-eu-ets.js";
+import { emissionEuEtsInputSchema } from "../../../widgets/src/emission/schema/emission-eu-ets.js";
 
 import { euEtsSummary } from "./vessel-details.js";
 

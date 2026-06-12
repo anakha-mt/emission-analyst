@@ -17,7 +17,7 @@ import {
   fleetRouteEmissionsDataSchema,
   incompleteVoyagesDataSchema,
   voyageCarbonCostDataSchema,
-} from "../../../../zap-widgets/src/emission/schema/index.js";
+} from "../../../widgets/src/emission/schema/index.js";
 import type { RawJson } from "../westship.js";
 
 // --- raw -> clean per-voyage record -----------------------------------------

@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 // The fixture is the worked example of the projection's output — exactly what the
 // live tool would return. Reusing it as the mock keeps the eval in lockstep with
 // the widget shape. Sandbox tools must be mocked; evals never hit the live server.
-import ciiFixture from "../../../../zap-widgets/src/emission/components/westship-cii.fixture.json" assert { type: "json" };
+import ciiFixture from "../../../widgets/src/emission/components/westship-cii.fixture.json" assert { type: "json" };
 
 describe("emission analytics", () => {
   it("fetches CII data and renders the emission_analytics widget", async () => {

@@ -1,6 +1,6 @@
 export default {
   environment: "stage", // only stage is supported right now
-  widgets: "../../zap-widgets",
+  widgets: "../widgets",
 
   // Overlay on the platform env template. TENANT becomes the `tenant` claim in the
   // M2M token the platform mints and forwards to tool servers (default would be "demo").

@@ -8,7 +8,7 @@
  * Source: GET {EMISSIONS_BASE_URL}/vessel-details/<imo>?year=<year>.
  * Target: zap-widgets/src/emission/schema/fleet-summary.ts (emissionFleetSummaryInputSchema).
  */
-import { emissionFleetSummaryInputSchema } from "../../../../zap-widgets/src/emission/schema/fleet-summary.js";
+import { emissionFleetSummaryInputSchema } from "../../../widgets/src/emission/schema/fleet-summary.js";
 
 import {
   aggregateFuelLines,

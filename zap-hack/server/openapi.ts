@@ -26,7 +26,7 @@ import {
   fleetRouteEmissionsDataSchema,
   incompleteVoyagesDataSchema,
   voyageCarbonCostDataSchema,
-} from "../../../zap-widgets/src/emission/schema/index.js";
+} from "../../widgets/src/emission/schema/index.js";
 import { routeListOutputSchema, voyageOverviewOutputSchema } from "./projections/voyages.js";
 
 const CII_RATING_DESCRIPTION = "CII rating band: A (best) through E (worst).";

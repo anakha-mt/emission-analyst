@@ -49,7 +49,7 @@ export type FixtureName = keyof typeof FIXTURE_FILES;
  */
 export function loadFixture(name: FixtureName = "cii"): RawJson {
   const path = fileURLToPath(
-    new URL(`../../../zap-widgets/src/emission/components/${FIXTURE_FILES[name]}`, import.meta.url),
+    new URL(`../../widgets/src/emission/components/${FIXTURE_FILES[name]}`, import.meta.url),
   );
   return JSON.parse(readFileSync(path, "utf8")) as RawJson;
 }

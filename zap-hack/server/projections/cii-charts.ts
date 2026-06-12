@@ -22,7 +22,7 @@
 import {
   ciiForecastDataSchema,
   ciiRatingDistributionDataSchema,
-} from "../../../../zap-widgets/src/emission/schema/index.js";
+} from "../../../widgets/src/emission/schema/index.js";
 
 import type { RawJson } from "../westship.js";
 import type { VesselCiiRecord } from "./vessel-cii.js";
